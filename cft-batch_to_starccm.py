@@ -312,11 +312,14 @@ def build_csv(csv_file, variations, output_folder, base_name):
 
     return 0
 
-values_array = txt_to_np("test.txt", " ")
-variables, units, components, formatted_components = make_template("test.cft-batch", "template.cft-batch")
-base_name = "Design"
-output_folder = "Output"
-variations = make_variations("test.cft-batch", "template.cft-batch", variables, units, values_array, output_folder, base_name)
-make_batch("test.bat", variations, output_folder)
-csv_stp_files = build_file_hierarchy(formatted_components, output_folder)
-build_csv("test.csv", variations, output_folder, base_name)
+def main():
+    values_array = txt_to_np("test.txt", " ")
+    variables, units, components, formatted_components = make_template("test.cft-batch", "template.cft-batch")
+    base_name = "Design"
+    output_folder = "Output"
+    variations = make_variations("test.cft-batch", "template.cft-batch", variables, units, values_array, output_folder, base_name)
+    make_batch("test.bat", variations, output_folder)
+    csv_stp_files = build_file_hierarchy(formatted_components, output_folder)
+    build_csv("test.csv", variations, output_folder, base_name)
+    
+main()

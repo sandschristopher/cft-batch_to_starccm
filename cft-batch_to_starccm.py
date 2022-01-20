@@ -22,7 +22,7 @@ def txt_to_np(txt_file, delimiter):
     with open(txt_file) as txt:
         data = txt.readlines()
         for line in data:
-            array.append(line.replace("\n", "").split(delimiter))
+            array.append(line.rstrip().split(delimiter))
     
     values_array = np.array(array, dtype=object)
 
@@ -135,7 +135,7 @@ base_name [string] = base name of folder containing .stp files
 '''
 def make_variations(cft_batch_file, template_file, variables, units, components, values_array, output_folder, base_name):
 
-    original_values = [[] for i in range(len(units))]
+    original_values = [[] for _ in range(len(units))]
 
     with open(cft_batch_file, "r") as cft_batch:
         data = cft_batch.readlines()
@@ -208,8 +208,8 @@ variations [list] = list of variation file names (from make_variations())
 def make_batch(batch_file, variations, output_folder):
     
     with open(batch_file, "a") as batch:
-        for variation in variations:
-            if "0" in variation:
+        for index, variation in enumerate(variations):
+            if index == 0:
                 batch.truncate(0)
 
             batch.write("\"C:\Program Files\CFturbo 2021.2.0\CFturbo.exe\" -batch \"" + variation + "\"\n")
@@ -244,14 +244,14 @@ def build_file_hierarchy(formatted_components, output_folder):
         elif ".stp" in file:
             stp_files.append(file)
             
-    sorted_stp_files = sorted(stp_files, key=lambda file: re.search("Co(.*)", file).group(1))
+    stp_files = sorted(stp_files, key=lambda file: re.search("Co(.*)", file).group(1))
 
-    final_list = [[] for i in range(len(formatted_components))]
+    final_list = [[] for _ in range(len(formatted_components))]
 
-    for file in sorted_stp_files:
-        for i in range(len(formatted_components)):
-            if int(file[-5]) == i + 1:
-                final_list[i].append(file)
+    for Co in range(len(formatted_components)):
+        for file in stp_files:
+            if re.search("_Co(\d+).stp", file).group(1) == str(Co + 1):
+                final_list[Co].append(file)
 
     if len(extension_files) != 0:
         formatted_components = formatted_components + [formatted_components[-1] + "_Extension"]
@@ -286,7 +286,6 @@ def build_file_hierarchy(formatted_components, output_folder):
             file_path = os.path.join(output_path, file)
             for j, stp in enumerate(os.listdir(file_path)):
                 os.rename(os.path.join(file_path, stp), os.path.join(file_path, "Design" + str(j) + "_" + formatted_components[i] + ".stp"))
-            exit()
 
     return formatted_components
 

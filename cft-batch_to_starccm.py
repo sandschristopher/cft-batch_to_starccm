@@ -1,4 +1,5 @@
 import shutil
+from typing import final
 import numpy as np
 import re
 import csv
@@ -21,9 +22,9 @@ def txt_to_np(txt_file, delimiter):
     with open(txt_file) as txt:
         data = txt.readlines()
         for line in data:
-            array.append(line.split(delimiter))
-
-    values_array = np.array(array)
+            array.append(line.replace("\n", "").split(delimiter))
+    
+    values_array = np.array(array, dtype=object)
 
     return values_array
 
@@ -132,7 +133,7 @@ values_array [np.array] = np.array of geometry parameter values (from txt_to_np(
 output_folder [string] = name of output file containing the resulting geometry variations
 base_name [string] = base name of folder containing .stp files
 '''
-def make_variations(cft_batch_file, template_file, variables, units, values_array, output_folder, base_name):
+def make_variations(cft_batch_file, template_file, variables, units, components, values_array, output_folder, base_name):
 
     original_values = [[] for i in range(len(units))]
 
@@ -188,7 +189,13 @@ def make_variations(cft_batch_file, template_file, variables, units, values_arra
 
         variations.append(new_file)
 
-    return variations
+    for index, value in enumerate(original_values):
+        if units[index] == "rad":
+            original_values[index] = str(round(float(value)*57.2958))
+
+    values_array = np.hstack((original_values, values_array))
+
+    return variations, values_array
 
 
 '''
@@ -205,7 +212,7 @@ def make_batch(batch_file, variations, output_folder):
             if "0" in variation:
                 batch.truncate(0)
 
-            batch.write("\"C:\Program Files\CFturbo 2021.1.4\CFturbo.exe\" -batch \"" + variation + "\"\n")
+            batch.write("\"C:\Program Files\CFturbo 2021.2.0\CFturbo.exe\" -batch \"" + variation + "\"\n")
 
         batch.close()
 
@@ -218,70 +225,70 @@ def make_batch(batch_file, variations, output_folder):
 
 
 '''
-Builds the proper file structure for Star-CCM 
+Builds the proper file structure for Star-CCM.
 
 Inputs:
 formatted_components [list] = list of formatted component names within the .cft-batch file (from make_template())
 output_folder [string] = name of output file containing the resulting geometry variations
 '''
 def build_file_hierarchy(formatted_components, output_folder):
-    
+
     output_path = os.path.abspath(output_folder)
-    if not os.path.exists(os.path.join(output_path, "Co1")):
 
-        stp_files = []
-        extension_files = []
+    stp_files = []
+    extension_files = []
 
-        for file in os.listdir(".\\" + output_folder + "\\"):
-            if "Extension" in file:
-                extension_files.append(file)
-            elif ".stp" in file:
-                stp_files.append(file)
+    for file in os.listdir(output_path):
+        if "Extension" in file:
+            extension_files.append(file)
+        elif ".stp" in file:
+            stp_files.append(file)
             
-        sorted_stp_files = sorted(stp_files, key=lambda file: re.search("Co(.*)", file).group(1))
+    sorted_stp_files = sorted(stp_files, key=lambda file: re.search("Co(.*)", file).group(1))
 
-        final_list = [[] for i in range(len(formatted_components))]
+    final_list = [[] for i in range(len(formatted_components))]
 
-        for file in sorted_stp_files:
-            for i in range(len(formatted_components)):
-                if int(file[-5]) == i + 1:
-                    final_list[i].append(file)
+    for file in sorted_stp_files:
+        for i in range(len(formatted_components)):
+            if int(file[-5]) == i + 1:
+                final_list[i].append(file)
 
-        for i, component in enumerate(final_list):
+    if len(extension_files) != 0:
+        formatted_components = formatted_components + [formatted_components[-1] + "_Extension"]
 
-            new_dir = formatted_components[i]
-            path = os.path.join(output_path, new_dir)
+    if not os.path.exists(os.path.join(output_path, formatted_components[0])):
+        for index, component in enumerate(final_list):
 
-            if not os.path.exists(path):
-                os.mkdir(path)
+            new_path = os.path.join(output_path, formatted_components[index])
+
+            if not os.path.exists(new_path):
+                os.mkdir(new_path)
 
                 for file in component:
-                    old_dir = output_path + "\\" + file
-                    shutil.move(old_dir, path)
+                    old_path = os.path.join(output_path, file)
+                    shutil.move(old_path, new_path)
             
         if len(extension_files) != 0:
-            new_dir = formatted_components[-1] + "_" + extension_files[0][-13:-4]
-            path = os.path.join(output_path, new_dir)
+            new_path = os.path.join(output_path, formatted_components[-1] + "_Extension")
 
-            if not os.path.exists(path):
-                os.mkdir(path)
+            if not os.path.exists(new_path):
+                os.mkdir(new_path)
 
-                for i, file in enumerate(extension_files):
-                    old_dir = output_path + "\\" + file
-                    shutil.move(old_dir, path)
+                for index, file in enumerate(extension_files):
+                    old_path = os.path.join(output_path, file)
+                    shutil.move(old_path, new_path)
 
         for file in os.listdir(output_path):
             if ".py" in file[-3:]:
                 os.remove(os.path.join(output_path, file))
 
-        formatted_components = sorted(formatted_components + [formatted_components[-1] + "_Extension"])
-
         for i, file in enumerate(os.listdir(output_path)):
             file_path = os.path.join(output_path, file)
             for j, stp in enumerate(os.listdir(file_path)):
                 os.rename(os.path.join(file_path, stp), os.path.join(file_path, "Design" + str(j) + "_" + formatted_components[i] + ".stp"))
+            exit()
 
-    return 0
+    return formatted_components
 
 
 '''
@@ -293,12 +300,21 @@ components [list] = list of component names within the .cft-batch file (from mak
 variations [list] = list of variation file names (from make_variations())
 base_name [string] = .stp file name prefix / output folder name (e.g. design, variation, stage, etc.)
 '''
-def build_csv(csv_file, variations, output_folder, base_name):
+def build_csv(csv_file, variations, variables, formatted_components, values_array, output_folder, base_name):
 
     header = ["Design#", "Name"]
 
     for folder in os.listdir(os.path.abspath(output_folder)):
         header.append(folder)
+
+    for i, variable in enumerate(variables):
+        for j, duplicate in enumerate(variables):
+            if i != j and variable == duplicate and abs(i - j) <= 3:
+                del variables[j]
+                values_array = np.delete(values_array, j, 0)
+
+    for variable in variables:
+        header.append(variable)
 
     with open(csv_file, "w", newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -306,8 +322,10 @@ def build_csv(csv_file, variations, output_folder, base_name):
 
         for variation in range(len(variations)):
             row = [str(variation), "Design " + str(variation)]
-            for column in header[2:]:
+            for column in header[2:(len(formatted_components) + 2)]:
                 row.append(base_name + str(variation) + "_" + column + ".stp")
+            for index in range(len(variables)):
+                row.append(values_array[index, variation])
             writer.writerow((row))
 
     return 0
@@ -317,9 +335,9 @@ def main():
     variables, units, components, formatted_components = make_template("test.cft-batch", "template.cft-batch")
     base_name = "Design"
     output_folder = "Output"
-    variations = make_variations("test.cft-batch", "template.cft-batch", variables, units, values_array, output_folder, base_name)
+    variations, values_array = make_variations("test.cft-batch", "template.cft-batch", variables, units, components, values_array, output_folder, base_name)
     make_batch("test.bat", variations, output_folder)
-    csv_stp_files = build_file_hierarchy(formatted_components, output_folder)
-    build_csv("test.csv", variations, output_folder, base_name)
-    
+    final_components = build_file_hierarchy(formatted_components, output_folder)
+    build_csv("test.csv", variations, variables, final_components, values_array, output_folder, base_name)
+
 main()

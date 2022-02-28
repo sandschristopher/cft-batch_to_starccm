@@ -1,5 +1,5 @@
 import shutil
-from typing import final
+from tracemalloc import start
 import numpy as np
 import re
 import csv
@@ -24,7 +24,7 @@ def txt_to_np(txt_file, delimiter):
         for line in data:
             array.append(line.rstrip().split(delimiter))
     
-    values_array = np.array(array, dtype=object)
+    values_array = np.array(array, dtype=object).T
 
     return values_array
 
@@ -50,14 +50,7 @@ def make_template(cft_batch_file, template_file):
                 for index in range(1, num_components + 1):
                     component = data[line_number + index].split("\"")[3]
                     components.append(component)
-                    
-                    if "[" in component:
-                        component = component.replace("[", " ").strip()
-                    
-                    if "]" in component:
-                        component = component.replace("]", " ").strip()
-
-                    formatted_components.append(component)
+                    formatted_components.append("".join(char for char in component if char.isalnum() or char in "_-"))
     
         cft_batch.close()
 
@@ -152,7 +145,7 @@ def make_variations(cft_batch_file, template_file, variables, units, components,
 
     entire_values_array = np.hstack((original_values, values_array))
 
-    for i, column in enumerate(entire_values_array.T):
+    for i, column in enumerate(entire_values_array.T, start=1):
 
         new_file = base_name + str(i) + ".cft-batch"
 
@@ -212,7 +205,7 @@ def make_batch(batch_file, variations, output_folder):
             if index == 0:
                 batch.truncate(0)
 
-            batch.write("\"C:\Program Files\CFturbo 2021.2.0\CFturbo.exe\" -batch \"" + variation + "\"\n")
+            batch.write("\"C:\Program Files\CFturbo 2021.2.2\CFturbo.exe\" -batch \"" + variation + "\"\n")
 
         batch.close()
 
@@ -284,14 +277,14 @@ def build_file_hierarchy(formatted_components, output_folder):
 
         for i, file in enumerate(os.listdir(output_path)):
             file_path = os.path.join(output_path, file)
-            for j, stp in enumerate(os.listdir(file_path)):
+            for j, stp in enumerate(os.listdir(file_path), start=1):
                 os.rename(os.path.join(file_path, stp), os.path.join(file_path, "Design" + str(j) + "_" + formatted_components[i] + ".stp"))
 
     return formatted_components
 
 
 '''
-Builds a .csv file that follows the tabular format within Star-CCM.
+Builds a .csv file that follows the tabular format within Star-CCM+'s .
 
 Inputs:
 csv_file [string] = name of output .csv file
@@ -306,12 +299,6 @@ def build_csv(csv_file, variations, variables, formatted_components, values_arra
     for folder in os.listdir(os.path.abspath(output_folder)):
         header.append(folder)
 
-    for i, variable in enumerate(variables):
-        for j, duplicate in enumerate(variables):
-            if i != j and variable == duplicate and abs(i - j) <= 3:
-                del variables[j]
-                values_array = np.delete(values_array, j, 0)
-
     for variable in variables:
         header.append(variable)
 
@@ -319,24 +306,24 @@ def build_csv(csv_file, variations, variables, formatted_components, values_arra
         writer = csv.writer(csvfile)
         writer.writerow((header))
 
-        for variation in range(len(variations)):
+        for variation in range(1, len(variations) + 1):
             row = [str(variation), "Design " + str(variation)]
             for column in header[2:(len(formatted_components) + 2)]:
                 row.append(base_name + str(variation) + "_" + column + ".stp")
             for index in range(len(variables)):
-                row.append(values_array[index, variation])
+                row.append(values_array[index, variation - 1])
             writer.writerow((row))
 
     return 0
 
 def main():
-    values_array = txt_to_np("test.txt", " ")
-    variables, units, components, formatted_components = make_template("test.cft-batch", "template.cft-batch")
+    values_array = txt_to_np("panthalassa.txt", "\t")
+    variables, units, components, formatted_components = make_template("panthalassa.cft-batch", "template.cft-batch")
     base_name = "Design"
     output_folder = "Output"
-    variations, values_array = make_variations("test.cft-batch", "template.cft-batch", variables, units, components, values_array, output_folder, base_name)
-    make_batch("test.bat", variations, output_folder)
+    variations, values_array = make_variations("panthalassa.cft-batch", "template.cft-batch", variables, units, components, values_array, output_folder, base_name)
+    make_batch("panthalassa.bat", variations, output_folder)
     final_components = build_file_hierarchy(formatted_components, output_folder)
-    build_csv("test.csv", variations, variables, final_components, values_array, output_folder, base_name)
+    build_csv("panthalassa.csv", variations, variables, final_components, values_array, output_folder, base_name)
 
 main()

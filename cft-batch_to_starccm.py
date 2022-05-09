@@ -5,28 +5,6 @@ import os
 import subprocess
 from math import degrees, radians
 
-'''
-Takes .txt file containing the parameter values and converts it into a numpy array.
-Dimensions should be in [m] and angles should be in [deg].
-
-Inputs:
-txt_file [string] = name of .txt file containing geometry variation parameters
-delimeter [string] = delimiter used within .txt file
-'''
-def txt_to_np(txt_file, delimiter):
-
-    array = []
-
-    with open(txt_file) as txt:
-        data = txt.readlines()
-        for line in data:
-            array.append(line.rstrip().split(delimiter))
-    
-    values_array = np.array(array, dtype=object).T
-
-    return values_array
-
-
 def build_template(cft_batch_file, template_file):
 
     master = {}
@@ -95,7 +73,6 @@ def build_template(cft_batch_file, template_file):
                                                 master[formatted_component][variable]['marker'] = marker
 
                                                     
-
                                             elif var_type == "Array1":
                                                 for line_number5, line5 in enumerate(section):
                                                     if "</" + variable + ">" in line5:
@@ -172,35 +149,65 @@ def build_template(cft_batch_file, template_file):
 
     return master, simple
 
-def build_designs(template_file, values_array, simple):
+def csv_to_np(simple, csv_file, project_name):
+
+    header = ["Design#"] + [marker[1:-1] for marker in simple.keys()]
+
+    first_row = [1] 
+    units_row = ['-']
+    
+    for (original, unit) in simple.values():
+        if unit == 'rad':
+            first_row.append(str(round(degrees(original), 3)))
+            units_row.append('deg')
+        elif unit == None:
+            first_row.append(str(original))
+            units_row.append('-')
+        else:
+            first_row.append(str(original))
+            units_row.append(unit)
+
+    if not os.path.exists(project_name + "_starccm.csv"):
+        with open(csv_file, "w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow((header))
+            writer.writerow((units_row))
+            writer.writerow((first_row))
+            csvfile.close()
+
+        pause = input("Fill the CSV file with the design parameters. Once complete, press the <ENTER> key to continue.")
+    
+    values_array = (np.genfromtxt(csv_file, dtype=str, delimiter=',', skip_header=2).T)[1:]
+
+    return values_array
+
+def build_designs(project_name, template_file, values_array, simple):
 
     designs = []
 
     for design_number, row in enumerate(values_array.T, start=1):
 
-        design_file = "Design" + str(design_number) + ".cft-batch"
+        design_file = project_name + "_Design" + str(design_number) + ".cft-batch"
 
         with open(template_file, 'r') as infile, open(design_file, 'w') as outfile:
             data = infile.readlines()
 
             for value_number, (marker, (original, unit)) in enumerate(simple.items()):
-                for line_number, line in enumerate(data):
-                    if design_number == 1:
-                        if marker in line:
-                            data[line_number] = line.replace(marker, str(original))
-                    
-                    else:
-                        if marker in line:
-                            if unit == 'rad':
-                                data[line_number] = line.replace(marker, str(radians(float(row[value_number]))))
-                            else:
-                                data[line_number] = line.replace(marker, row[value_number])
-                    
+                for line_number, line in enumerate(data):        
+                    if marker in line:
+                        if unit == 'rad':
+                            data[line_number] = line.replace(marker, str(radians(float(row[value_number]))))
+                        else:
+                            data[line_number] = line.replace(marker, row[value_number])
+                            
                     if "<BaseFileName>" in line:
                         old_name = re.search("<BaseFileName>(.*)</BaseFileName>", line).group(1)
                         data[line_number] = line.replace(old_name, "Design" + str(design_number))
-                        break
-        
+
+                    if "<OutputFile>" in line:
+                        old_name = re.search("<OutputFile>(.*)</OutputFile>", line).group(1)
+                        data[line_number] = line.replace(old_name, design_file.replace(".cft-batch", ".cft"))
+
             outfile.writelines(data)
 
         designs.append(design_file)
@@ -227,7 +234,7 @@ def run_batch(batch_file, designs):
     return 0
 
 
-def build_csv(csv_file, designs, simple, master, values_array):
+def build_starccm_csv(csv_file, designs, simple, master, values_array):
 
     header = ["Design#", "Name"]
 
@@ -242,23 +249,19 @@ def build_csv(csv_file, designs, simple, master, values_array):
             for component_number in range(1, len(master) + 1):
                 row.append("Design" + str(design_number) + "_" + "Co" + str(component_number) + ".stp")
             for variable_num, variable in enumerate(simple):
-                original, unit = simple.get(variable)
-                if design_number == 1:
-                    if unit == "rad":
-                        row.append(round(degrees(original), 3))
-                    else:
-                        row.append(original)
-                else:
-                    row.append(values_array[variable_num, design_number - 1])
+                row.append(values_array[variable_num, design_number - 1])
             writer.writerow((row))
 
     return 0
 
 def main():
-    values_array = txt_to_np("panthalassa.txt", "\t")
-    master, simple = build_template("panthalassa.cft-batch", "template.cft-batch")
-    designs = build_designs("template.cft-batch", values_array, simple)
-    run_batch("panthalassa.bat", designs)
-    build_csv("panthalassa.csv", designs, simple, master, values_array)
+
+    project_name = "FT_Optimized"
+
+    master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")
+    values_array = csv_to_np(simple, project_name + "_design_variables.csv", project_name)
+    designs = build_designs(project_name, "template.cft-batch", values_array, simple)
+    run_batch(project_name + ".bat", designs)
+    build_starccm_csv(project_name + "_starccm.csv", designs, simple, master, values_array)
 
 main()

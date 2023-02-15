@@ -14,9 +14,9 @@ def build_template(cft_batch_file, template_file):
         for line_number1, line1 in enumerate(data):
             if "<ExportComponents " in line1:
                 num_components = int(line1.split("\"")[1])
-                for index in range(1, num_components + 1):
+                for component_index in range(1, num_components + 1):
                     for line_number2, line2 in enumerate(data):
-                        component = re.search("Caption=\"(.+?)\"", data[line_number1 + index]).group(1)
+                        component = re.search("Caption=\"(.+?)\"", data[line_number1 + component_index]).group(1)
                         formatted_component = "".join(char for char in component if char.isalnum() or char in "_-")
                         if formatted_component not in master:
                             master[formatted_component] = {}
@@ -72,7 +72,6 @@ def build_template(cft_batch_file, template_file):
                                                 master[formatted_component][variable]['value'] = value
                                                 master[formatted_component][variable]['marker'] = marker
 
-                                                    
                                             elif var_type == "Array1":
                                                 for line_number5, line5 in enumerate(section):
                                                     if "</" + variable + ">" in line5:
@@ -111,11 +110,12 @@ def build_template(cft_batch_file, template_file):
 
                                             else:
                                                 try:
-                                                    if var_type == "Integer":
-                                                        value = int(re.search(">(.*)</", line4).group(1))
-                                                    else: 
-                                                        value = float(re.search(">(.*)</", line4).group(1))
-                                                    
+                                                    value = re.search(">(.*)</", line4).group(1)
+                                                    if "." in value:
+                                                        value = float(value)
+                                                    else:
+                                                        value = int(value)
+
                                                     marker = "{" + formatted_component + "_" + variable + "}"
                                                 except AttributeError:
                                                     next
@@ -124,12 +124,6 @@ def build_template(cft_batch_file, template_file):
                                                 
                                                 master[formatted_component][variable]['value'] = value
                                                 master[formatted_component][variable]['marker'] = marker
-
-        for line_number7, line7 in enumerate(data):
-            if "<WorkingDir>" in line7:
-                old_directory = re.search("<WorkingDir>(.*)</WorkingDir>", line7).group(1)
-                new_directory = ".\\" + "Output" + "\\"
-                data[line_number7] = line7.replace(old_directory, new_directory)
 
         outfile.writelines(data)
 

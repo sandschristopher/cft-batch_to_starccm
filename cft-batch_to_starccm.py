@@ -5,6 +5,53 @@ import os
 import subprocess
 from math import degrees, radians
 
+'''
+
+def retrieve_variable_data(data, master, component, index):
+
+    for line_number, line in enumerate(data):
+        if "Caption=" in line:
+            variable = line.split(" ")[0].strip()[1:]
+            if "</" + variable + ">" in line:
+                if variable not in master[component]:
+                    master[component][variable] = {}
+
+                try:
+                    var_type = re.search("Type=\"(.+?)\"", line).group(1)
+                    master[component][variable]['var_type'] = var_type
+                except AttributeError:
+                    next
+
+                try:
+                    count = re.search("Count=\"(.+?)\"", line).group(1)
+                    master[component][variable]['count'] = count
+                except AttributeError:
+                    next
+
+                try:
+                    caption = re.search("Caption=\"(.+?)\"", line).group(1)
+                    master[component][variable]['caption'] = caption
+                except AttributeError:
+                    next
+
+                try:
+                    desc = re.search("Desc=\"(.+?)\"", line).group(1)
+                    master[component][variable]['desc'] = desc
+                except AttributeError:
+                    next
+                
+                try:
+                    unit = re.search("Unit=\"(.+?)\"", line).group(1)
+                    master[component][variable]['unit'] = unit
+                except AttributeError:
+                    next
+
+                marker = "{" + component + "_" + variable + "_" + caption.replace(" ", '-') + "_" + index + "}"
+
+    return 0
+
+    '''
+
 def build_template(cft_batch_file, template_file):
 
     master = {}
@@ -18,10 +65,9 @@ def build_template(cft_batch_file, template_file):
                     for component_line in data[line_number + 1:line_number + num_components + 1]:
                         component = re.search("Caption=\"(.+?)\"", component_line).group(1)
                         index = re.search("Index=\"(.+?)\"", component_line).group(1)
-                        formatted_component = "".join(char for char in component if char.isalnum() or char in "_ -")
-                        if formatted_component not in master:
-                            master[formatted_component] = {}
-                            master[formatted_component]['index'] = index
+                        if component not in master:
+                            master[component] = {}
+                            master[component]['index'] = index
 
     mean_line_sections = []
 
@@ -486,6 +532,18 @@ def run_batch(batch_file, designs):
 
 def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array):
 
+    formatted_components = []
+
+    for component in master.keys():
+        formatted_components.append("".join(char for char in component if char.isalnum() or char in "_-"))
+
+    formatted_markers = []
+    
+    for marker in simple.keys():
+        formatted_marker = marker[2:-2]
+        formatted_markers.append("".join(char for char in formatted_marker if char.isalnum() or char in "_-"))
+
+
     header = ["Design#", "Name"]
 
     with open(cft_file) as infile:
@@ -494,13 +552,13 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
             if "<IsActiveExtension" in line:
                 isActiveExtension = bool(re.search(">(.*)</", line).group(1))
                 if isActiveExtension == True:
-                    header = header + [formatted_component for formatted_component in master.keys()] + [list(master)[-1] + "_" + "Extension"] + [marker[2:-2] for marker in simple.keys()]
+                    header = header + formatted_components + [formatted_components[-1] + "_" + "Extension"] + formatted_markers
                     break
                 else:
-                    header = header + [formatted_component for formatted_component in master.keys()] + [marker[2:-2] for marker in simple.keys()]
+                    header = header + formatted_components + formatted_markers
                     break
             else:
-                header = header + [formatted_component for formatted_component in master.keys()] + [marker[2:-2] for marker in simple.keys()]
+                header = header + formatted_components + formatted_markers
                 isActiveExtension = False
                 break
 
@@ -522,7 +580,7 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
 def main():
 
-    project_name = ""
+    project_name = "AF_nq105"
 
     master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")
     values_array = csv_to_np(simple, project_name + "_design_variables.csv", project_name)

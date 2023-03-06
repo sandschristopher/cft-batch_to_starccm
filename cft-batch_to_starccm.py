@@ -5,53 +5,6 @@ import os
 import subprocess
 from math import degrees, radians
 
-'''
-
-def retrieve_variable_data(data, master, component, index):
-
-    for line_number, line in enumerate(data):
-        if "Caption=" in line:
-            variable = line.split(" ")[0].strip()[1:]
-            if "</" + variable + ">" in line:
-                if variable not in master[component]:
-                    master[component][variable] = {}
-
-                try:
-                    var_type = re.search("Type=\"(.+?)\"", line).group(1)
-                    master[component][variable]['var_type'] = var_type
-                except AttributeError:
-                    next
-
-                try:
-                    count = re.search("Count=\"(.+?)\"", line).group(1)
-                    master[component][variable]['count'] = count
-                except AttributeError:
-                    next
-
-                try:
-                    caption = re.search("Caption=\"(.+?)\"", line).group(1)
-                    master[component][variable]['caption'] = caption
-                except AttributeError:
-                    next
-
-                try:
-                    desc = re.search("Desc=\"(.+?)\"", line).group(1)
-                    master[component][variable]['desc'] = desc
-                except AttributeError:
-                    next
-                
-                try:
-                    unit = re.search("Unit=\"(.+?)\"", line).group(1)
-                    master[component][variable]['unit'] = unit
-                except AttributeError:
-                    next
-
-                marker = "{" + component + "_" + variable + "_" + caption.replace(" ", '-') + "_" + index + "}"
-
-    return 0
-
-    '''
-
 def build_template(cft_batch_file, template_file):
 
     master = {}
@@ -580,7 +533,7 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
 def main():
 
-    project_name = "AF_nq105"
+    project_name = ""
 
     master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")
     values_array = csv_to_np(simple, project_name + "_design_variables.csv", project_name)

@@ -740,6 +740,8 @@ def run_batch(batch_file, designs):
 
 def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array):
 
+    print(values_array)
+
     formatted_components = []
 
     for component in master.keys():
@@ -751,24 +753,18 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
         formatted_marker = marker[2:-2]
         formatted_markers.append("".join(char for char in formatted_marker if char.isalnum() or char in "_-"))
 
-
     header = ["Design#", "Name"]
 
     with open(cft_file) as infile:
         data = infile.readlines()
         for _, line in enumerate(data):
             if "<IsActiveExtension" in line:
-                isActiveExtension = bool(re.search(">(.*)</", line).group(1))
-                if isActiveExtension == True:
-                    header = header + formatted_components + [formatted_components[-1] + "_" + "Extension"] + formatted_markers
-                    break
-                else:
-                    header = header + formatted_components + formatted_markers
-                    break
-            else:
-                header = header + formatted_components + formatted_markers
-                isActiveExtension = False
-                break
+                isActiveExtension = re.search(">(.*)</", line).group(1)
+
+        if isActiveExtension == "True":
+            header = header + formatted_components + [formatted_components[-1] + "_" + "Extension"] + formatted_markers
+        else:
+            header = header + formatted_components + formatted_markers
 
     with open(csv_file, "w", newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -778,9 +774,10 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
             row = [str(design_number), "Design " + str(design_number)]
             for component in master.keys():
                 row.append("Design" + str(design_number) + "_" + "Co" + str(int(master[component].get('index')) + 1) + ".stp")
-                if isActiveExtension == True and component == list(master)[-1]:
-                    row.append(row.append("Design" + str(design_number) + "_" + "Co" + str(int(master[component].get('index')) + 1) + "_Extension.stp"))
+            if isActiveExtension == "True" and component == list(master)[-1]:
+                row.append("Design" + str(design_number) + "_" + "Co" + str(int(master[component].get('index')) + 1) + "_Extension.stp")
             for variable_num, _ in enumerate(simple):
+                print(values_array[variable_num, design_number - 1])
                 row.append(values_array[variable_num, design_number - 1])
             writer.writerow((row))
 

@@ -719,14 +719,14 @@ def build_designs(project_name, template_file, values_array, simple):
     return designs
 
 
-def run_batch(batch_file, designs):
+def run_batch(batch_file, designs, cft_version):
     
     with open(batch_file, "a") as batch:
         for index, design in enumerate(designs):
             if index == 0:
                 batch.truncate(0)
 
-            batch.write("\"C:\Program Files\CFturbo 2023.1.5\CFturbo.exe\" -batch \"" + design + "\"\n")
+            batch.write("\"C:\Program Files\CFturbo " + cft_version + "\CFturbo.exe\" -batch \"" + design + "\"\n")
 
         batch.close()
 
@@ -785,12 +785,13 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
 def main():
 
-    project_name = " "
+    project_name = "SogefiDemo"
+    cft_version = "2023.1.5"
 
     master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")
     values_array = csv_to_np(simple, project_name + "_design_variables.csv", project_name)
     designs = build_designs(project_name, "template.cft-batch", values_array, simple)
-    run_batch(project_name + ".bat", designs)
+    run_batch(project_name + ".bat", designs, cft_version)
     build_starccm_csv(project_name + ".cft", project_name + "_starccm_design_manager.csv", designs, simple, master, values_array)
 
 main()

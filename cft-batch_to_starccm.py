@@ -785,7 +785,7 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
 def main():
 
-    project_name = "SogefiDemo"
+    project_name = "ProjectName"
     cft_version = "2023.1.5"
 
     master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")

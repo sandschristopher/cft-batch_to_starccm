@@ -744,6 +744,8 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
     formatted_components = []
 
+    isActiveExtension = "False"
+
     for component in master.keys():
         formatted_components.append("".join(char for char in component if char.isalnum() or char in "_-"))
 

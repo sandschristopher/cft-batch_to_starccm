@@ -740,8 +740,6 @@ def run_batch(batch_file, designs, cft_version):
 
 def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array):
 
-    print(values_array)
-
     formatted_components = []
 
     isActiveExtension = "False"
@@ -779,7 +777,6 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
             if isActiveExtension == "True" and component == list(master)[-1]:
                 row.append("Design" + str(design_number) + "_" + "Co" + str(int(master[component].get('index')) + 1) + "_Extension.stp")
             for variable_num, _ in enumerate(simple):
-                print(values_array[variable_num, design_number - 1])
                 row.append(values_array[variable_num, design_number - 1])
             writer.writerow((row))
 
@@ -787,8 +784,8 @@ def build_starccm_csv(cft_file, csv_file, designs, simple, master, values_array)
 
 def main():
 
-    project_name = "ProjectName"
-    cft_version = "2023.1.5"
+    project_name = "project_name"
+    cft_version = "2024.1.2"
 
     master, simple = build_template(project_name + ".cft-batch", "template.cft-batch")
     values_array = csv_to_np(simple, project_name + "_design_variables.csv", project_name)
